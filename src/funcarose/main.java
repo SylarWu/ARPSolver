@@ -2,19 +2,40 @@ package funcarose;
 
 import funcarose.controller.DeviceAccess;
 
+import static java.lang.Thread.sleep;
+
 public class main {
+    static volatile boolean test = true;
+    static long before = System.currentTimeMillis();
+    static long after;
+
     public static void main(String args[]){
-        DeviceAccess deviceAccess = DeviceAccess.getInstance();
+        long i = Long.MIN_VALUE;
 
-        deviceAccess.accessAllDevices();
+        int count = 0;
 
-        deviceAccess.pickRecvDevice(2);
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                after = System.currentTimeMillis();
 
-        deviceAccess.openCurrentDevice();
+                while(after - before <1000){
+                    System.out.println(after - before);
+                }
+                test = false;
 
-        while (true){
-            deviceAccess.start();
+            }
+        });
+        t.start();
+
+
+        while(test){
+            i++;
+            if (i == 0){
+                count++;
+            }
         }
-
+        System.out.println("i:" + i);
+        System.out.println("count:" + count);
     }
 }

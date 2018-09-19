@@ -5,6 +5,7 @@ import funcarose.controller.DeviceAccess;
 import funcarose.controller.PacketDispatch;
 import funcarose.packetbean.ARPPacket;
 import funcarose.packetbean.FramePacket;
+import jpcap.NetworkInterfaceAddress;
 import jpcap.packet.Packet;
 
 import javax.swing.*;
@@ -19,17 +20,22 @@ import java.util.Vector;
 public class UI {
 
     private JFrame MainFrame;
+
     private JTextField tfDstMac;
     private JTextField tfSrcMac;
     private JTextField tfDstIp;
     private JTextField tfSrcIp;
+
     private JTable infoTable;
+
     private static DeviceAccess deviceAccess = DeviceAccess.getInstance();
     private static PacketDispatch dispatch = PacketDispatch.getInstance();
-    public static UI instance = null;
-    public static int No = 0;
+
+    private static UI instance = null;
+    private static int No = 0;
     private DefaultTableModel model;
     private static volatile boolean KEEPING = true;
+    private static boolean ARPFILTER = false;
     private static Thread loop = new Thread(new Runnable() {
         @Override
         public void run() {
@@ -129,12 +135,26 @@ public class UI {
             @Override
             public void actionPerformed(ActionEvent e) {
                 int i = 1;
+                String dstMac = (tfDstMac.getText() == null ) ? "" : tfDstMac.getText();
+                String srcMac = (tfSrcMac.getText() == null ) ? "" : tfSrcMac.getText();
+                String dstIp  = (tfDstIp.getText() == null ) ? "" : tfDstIp.getText();
+                String srcIp  = (tfSrcIp.getText() == null ) ? "" : tfSrcIp.getText();
                 if (requestChose.isSelected()){
                     i = 1;
                 }else if (replyChose.isSelected()){
                     i = 2;
                 }
-                dispatch.addSendQueue(deviceAccess.sendARPPrepared(i,tfDstMac.getText(),tfDstIp.getText(),tfSrcMac.getText(),tfSrcIp.getText()));
+
+                if (dstMac.equals("")){
+                    dstMac = "ff:ff:ff:ff:ff:ff";
+                    tfDstMac.setText(dstMac);
+                }
+                if (srcMac.equals("")){
+                    srcMac = DeviceAccess.macToString(deviceAccess.getSender_device().mac_address);
+                    tfSrcMac.setText(srcMac);
+                }
+
+                dispatch.addSendQueue(deviceAccess.sendARPPrepared(i,dstMac,dstIp,srcMac,srcIp));
             }
         });
 
@@ -227,9 +247,20 @@ public class UI {
         });
 
         JScrollPane infoScrollPane = new JScrollPane();
+        JCheckBox arpSelected = new JCheckBox("\u53EA\u663E\u793AARP\u5305");
+        arpSelected.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (arpSelected.isSelected()){
+                    ARPFILTER = true;
+                }else {
+                    ARPFILTER = false;
+                }
+            }
+        });
         GroupLayout groupLayout = new GroupLayout(MainFrame.getContentPane());
         groupLayout.setHorizontalGroup(
-                groupLayout.createParallelGroup(Alignment.TRAILING)
+                groupLayout.createParallelGroup(Alignment.LEADING)
                         .addGroup(groupLayout.createSequentialGroup()
                                 .addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
                                         .addGroup(groupLayout.createSequentialGroup()
@@ -269,10 +300,12 @@ public class UI {
                                                         .addGroup(groupLayout.createSequentialGroup()
                                                                 .addComponent(labelNetInterface_R, GroupLayout.PREFERRED_SIZE, 60, GroupLayout.PREFERRED_SIZE)
                                                                 .addGap(18)
-                                                                .addComponent(choseNetInterface_R, GroupLayout.PREFERRED_SIZE, 885, GroupLayout.PREFERRED_SIZE))
+                                                                .addComponent(choseNetInterface_R, GroupLayout.PREFERRED_SIZE, 885, GroupLayout.PREFERRED_SIZE)
+                                                                .addGap(18)
+                                                                .addComponent(arpSelected))
                                                         .addComponent(infoScrollPane, GroupLayout.PREFERRED_SIZE, 1103, GroupLayout.PREFERRED_SIZE))))
                                 .addContainerGap(51, GroupLayout.PREFERRED_SIZE))
-                        .addGroup(Alignment.LEADING, groupLayout.createSequentialGroup()
+                        .addGroup(groupLayout.createSequentialGroup()
                                 .addGap(102)
                                 .addComponent(requestChose)
                                 .addGap(111)
@@ -314,7 +347,8 @@ public class UI {
                                 .addGap(18)
                                 .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
                                         .addComponent(labelNetInterface_R, GroupLayout.PREFERRED_SIZE, 18, GroupLayout.PREFERRED_SIZE)
-                                        .addComponent(choseNetInterface_R, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE))
+                                        .addComponent(choseNetInterface_R, GroupLayout.PREFERRED_SIZE, 24, GroupLayout.PREFERRED_SIZE)
+                                        .addComponent(arpSelected))
                                 .addGap(18)
                                 .addComponent(infoScrollPane, GroupLayout.PREFERRED_SIZE, 171, GroupLayout.PREFERRED_SIZE)
                                 .addGap(14)
@@ -359,7 +393,7 @@ public class UI {
 
         String [] row = new String[8];
 
-        if (temp.getType().equals("0806")){
+        if (temp.getType().equals("0806")) {
 
             ARPPacket x = new ARPPacket(temp);
 
@@ -371,6 +405,12 @@ public class UI {
             row[5] = x.getSrc_mac();
             row[6] = x.getDst_ip();
             row[7] = x.getDst_mac();
+
+            model.addRow(row);
+            return;
+        }
+        if (ARPFILTER){
+            return;
         }else {
             row[0] = String.valueOf(No++);
             row[1] = temp.getType();
@@ -380,8 +420,7 @@ public class UI {
             row[5] = temp.getSrc_mac();
             row[6] = "";
             row[7] = temp.getDst_mac();
+            model.addRow(row);
         }
-
-        model.addRow(row);
     }
 }

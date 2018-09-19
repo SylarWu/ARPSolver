@@ -57,18 +57,6 @@ public class DeviceAccess {
         this.core.breakLoop();
     }
 
-    public void sendInitial(){
-        try {
-            if (this.sender != null){
-                closeSenderEngine();
-            }
-
-            this.sender = JpcapSender.openDevice(this.sender_device);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 
     public ARPPacket sendARPPrepared(int operation ,String dst_mac,String dst_ip,String src_mac,String src_ip){
         ARPPacket arpPacket = new ARPPacket();
@@ -162,11 +150,23 @@ public class DeviceAccess {
      * @return boolean 返回成功与否
      */
     public synchronized boolean openCurrentDevice(){
-        if (core != null){
+        if (this.core != null){
             closeCurrentDevice();
         }
         try {
             core = JpcapCaptor.openDevice(this.current_device,MAX_BYTES_NUMBER,PROMISC,TIMEOUT);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+    public synchronized boolean sendInitial(){
+        if (this.sender != null){
+            closeSenderEngine();
+        }
+        try {
+            this.sender = JpcapSender.openDevice(this.sender_device);
         } catch (IOException e) {
             e.printStackTrace();
             return false;
@@ -184,6 +184,13 @@ public class DeviceAccess {
             core = null;
         }
     }
+    public synchronized void closeSenderEngine(){
+        if (this.sender != null){
+            sender.close();
+            sender = null;
+        }
+    }
+
     /**
      * 设置过滤器
      * @param FILTER
@@ -200,15 +207,14 @@ public class DeviceAccess {
         }
     }
 
-    public synchronized void closeSenderEngine(){
-        if (this.sender != null){
-            this.sender.close();
-            this.sender = null;
-        }
-    }
+
 
     public NetworkInterface getCurrent_device() {
         return current_device;
+    }
+
+    public NetworkInterface getSender_device() {
+        return sender_device;
     }
 
     public String getInfo(){
